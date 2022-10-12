@@ -1,0 +1,18 @@
+---
+## Default Kibana configuration from Kibana base image.
+## https://github.com/elastic/kibana/blob/master/src/dev/build/tasks/os_packages/docker_generator/templates/kibana_yml.template.js
+#
+server.name: kibana
+server.host: "0.0.0.0"
+elasticsearch.hosts: [ "http://elasticsearch:9200" ]
+xpack.monitoring.ui.container.elasticsearch.enabled: true
+
+## X-Pack security credentials
+# Não é aceito o uso do usuário "elastic". O usuário kibana_system existe por padrão. Será necessário alterar a senha dele fazendo um post na rota:
+# http://localhost:9200/_security/user/kibana_system/_password
+# Autorização do tipo basic: user: elastic password: changeme
+# body da requisição: { "password": "123456" }
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-change-password.html
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/built-in-users.html
+elasticsearch.username: elastic
+elasticsearch.password: changeme

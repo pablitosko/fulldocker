@@ -1,0 +1,87 @@
+version: '3'
+
+services:
+  node-red:
+    image: nodered/node-red:latest
+    volumes:
+      - ./node-red/data/:/data
+    environment:
+      - TZ=America/Cuiaba
+    networks:
+      - "full_network"
+    ports:
+      - "1880:1880"
+
+
+  elasticsearch:    
+    build:
+      context: elasticsearch/
+      args:
+        ELK_VERSION: ${ELK_VERSION}
+    volumes:
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro      
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ELASTIC_PASSWORD: changeme
+    networks:
+      - "full_network"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+
+  kibana:    
+    build:
+      context: kibana/
+      args:
+        ELK_VERSION: ${ELK_VERSION}      
+    volumes:
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    networks:
+      - "full_network"
+    depends_on:
+      - elasticsearch
+    ports:
+      - 5601:5601
+
+  logstash:
+    build:
+      context: logstash/   
+      args:
+        ELK_VERSION: ${ELK_VERSION}      
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    depends_on:
+      - elasticsearch
+      - kibana
+    ports:
+      - "5044:5044/tcp"
+      - "5001:5001/tcp"
+      - "5001:5001/udp"
+      - "9600:9600"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m" 
+    networks:
+      - "full_network"
+
+  filebeat:    
+    build:
+      context: filebeat/
+      args:
+        ELK_VERSION: ${ELK_VERSION}
+    volumes:
+      # needed to access all docker logs (read only) :
+      - /var/lib/docker/containers:/usr/share/dockerlogs/data:ro
+      # needed to access additional informations about containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:      
+      - logstash      
+    networks:
+      - "full_network"
+
+
+
+
+networks:
+  full_network:
+    driver: bridge

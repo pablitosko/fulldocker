@@ -1,0 +1,17 @@
+---
+## Default Logstash configuration from Logstash base image.
+## https://github.com/elastic/logstash/blob/master/docker/data/logstash/config/logstash-full.yml
+#
+http.host: "0.0.0.0"
+xpack.monitoring.elasticsearch.hosts: [ "http://elasticsearch:9200" ]
+
+## X-Pack security credentials
+# Não é aceito o uso do usuário "elastic". O usuário kibana_system existe por padrão. Será necessário alterar a senha dele fazendo um post na rota:
+# http://localhost:9200/_security/user/kibana_system/_password
+# Autorização do tipo basic: user: elastic password: changeme
+# body da requisição: { "password": "123456" }
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-change-password.html
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/built-in-users.html
+xpack.monitoring.enabled: true
+xpack.monitoring.elasticsearch.username: elastic
+xpack.monitoring.elasticsearch.password: changeme
