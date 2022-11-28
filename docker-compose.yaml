@@ -1,18 +1,32 @@
 version: '3'
-
 services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./portainer-data:/data
+    ports:
+      - 9000:9000
+    networks:
+      tools:
+        ipv4_address: 172.16.237.241
   node-red:
     image: nodered/node-red:latest
     volumes:
       - ./node-red/data/:/data
     environment:
       - TZ=America/Cuiaba
-    networks:
-      - "full_network"
-    ports:
-      - "1880:1880"
-
-
+#    ports:
+#      - "1980:1980"
+    network_mode: host
+#   networks:
+#     tools:
+#       ipv4_address: 172.16.237.242
   elasticsearch:    
     build:
       context: elasticsearch/
@@ -24,11 +38,11 @@ services:
       ES_JAVA_OPTS: "-Xmx256m -Xms256m"
       ELASTIC_PASSWORD: changeme
     networks:
-      - "full_network"
+      tools:
+        ipv4_address: 172.16.237.243
     ports:
       - "9200:9200"
       - "9300:9300"
-
   kibana:    
     build:
       context: kibana/
@@ -37,12 +51,14 @@ services:
     volumes:
       - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
     networks:
-      - "full_network"
+      tools:
+        ipv4_address: 172.16.237.244
     depends_on:
       - elasticsearch
     ports:
       - 5601:5601
-
+    environment:
+      - "ELASTICSEARCH_URL=http://elasticsearch:9200"
   logstash:
     build:
       context: logstash/   
@@ -60,10 +76,10 @@ services:
       - "5001:5001/udp"
       - "9600:9600"
     environment:
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m" 
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
     networks:
-      - "full_network"
-
+      tools:
+        ipv4_address: 172.16.237.245
   filebeat:    
     build:
       context: filebeat/
@@ -74,14 +90,53 @@ services:
       - /var/lib/docker/containers:/usr/share/dockerlogs/data:ro
       # needed to access additional informations about containers
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./filebeat/log:/var/log/filebeat
+      - ./filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
     depends_on:      
       - logstash      
     networks:
-      - "full_network"
-
-
-
-
+      tools:
+        ipv4_address: 172.16.237.246
+  packetbeat:
+    build:
+      context: packetbeat/
+      args:
+        ELK_VERSION: ${ELK_VERSION}
+    cap_add:
+      - ALL
+    command: packetbeat -e -strict.perms=false
+#    environment:
+#      - "WAIT_FOR_HOSTS=elasticsearch:9200 kibana:5667"
+#      - "HOST_ELASTICSEARCH=elasticsearch:9200"
+#      - "HOST_KIBANA=kibana:5601"
+    volumes:
+      - ./packetbeat/config/packetbeat.yml:/usr/share/packetbeat/packetbeat.yml:ro
+      - ./packetbeat/log:/var/log/packetbeat
+    network_mode: host
+#    networks:
+#      tools:
+#        ipv4_address: 172.16.237.247
+    extra_hosts:
+#      - "node-red:172.16.237.242"
+      - "elasticsearch:172.16.237.243"
+      - "kibana:172.16.237.244"
+      - "logstash:172.16.237.245"
+      - "filebeat:172.16.237.246"
+      - "packetbeat:172.16.237.247"      
+    depends_on:
+      - elasticsearch
+      - kibana
 networks:
-  full_network:
+  tools:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 172.16.237.0/24
+        gateway: 172.16.237.1
+#  tools2:
+#    ipam:
+#      driver: host
+#      config:
+#      - subnet: 192.168.0.0/24
+#        gateway: 192.168.0.1
